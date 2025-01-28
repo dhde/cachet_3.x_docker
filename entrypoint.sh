@@ -73,13 +73,12 @@ initialize_system() {
   while IFS= read -r var; do
     # Extract key and value from the environment variable
     key=$(echo "$var" | cut -d= -f1)
-    value=$(echo "$var" | cut -d= -f2-)
+    value=$(echo "$var" | cut -d= -f2- | sed 's/[]\/&]/\\&/g')
 
-    echo $key  ==== $value
     # Search for the key in the .env file with optional leading "#" and trailing spaces around "="
-    if grep -q "^\s*#\s*$key\s*=.*"  "$env_file"; then
+    if grep -E -q "^\s*#?\s*$key\s*=.*"  "$env_file"; then
       # Replace the line with the desired format (remove "#" and set the value)
-      sed "s/^\s*#\s*$key\s*=.*/${key} = $value/" -i "$env_file"
+      sed -E "s/^\s*#?\s*$key\s*=.*/${key} = $value/" -i "$env_file"
     fi
   done < <(env)
 
@@ -103,7 +102,8 @@ start_system() {
   initialize_system
   migrate_db
   php artisan config:cache
-  php artisan vendor:publish --force --tag=livewire:assets
+  php artisan vendor:publish --tag=livewire:assets
+  php artisan filament:assets
   echo "Starting Cachet! ..."
   /usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf
 }
